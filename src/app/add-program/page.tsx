@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AudioForm from '../../components/AudioForm';
 import ProgramList from '../../components/ProgramList';
+import { createClient } from '@/utils/supabase/server'
+import { cookies } from 'next/headers'
+
 
 interface Program {
   id: number;
@@ -18,7 +21,19 @@ export default function AddProgramPage() {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [editingProgram, setEditingProgram] = useState<Program | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const cookieStore = cookies()
+  const supabase = createClient(cookieStore)
 
+  const { data: todos } = await supabase.from('todos').select()
+
+  return (
+    <ul>
+      {todos?.map((todo) => (
+        <li>{todo}</li>
+      ))}
+    </ul>
+  )
+}
   useEffect(() => {
     fetchPrograms();
   }, []);
