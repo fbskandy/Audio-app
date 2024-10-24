@@ -89,55 +89,42 @@ const AudioForm: React.FC<AudioFormProps> = ({ onAddAudio, onCancel, editingProg
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Add validation for required fields
     if (!formData.programName || !formData.date || !formData.category || !formData.description) {
       alert('Please fill in all required fields');
       return;
     }
 
-    let audioUrl = editingProgram?.audio_url;
-
+    const formDataToSend = new FormData();
+    formDataToSend.append('programName', formData.programName);
+    formDataToSend.append('date', formData.date);
+    formDataToSend.append('category', formData.category);
+    formDataToSend.append('description', formData.description);
     if (formData.audioFile) {
-      const file = formData.audioFile;
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const { data, error } = await supabase.storage
-        .from('audio-files')
-        .upload(fileName, file);
-
-      if (error) throw error;
-
-      const { publicURL, error: urlError } = supabase.storage
-        .from('audio-files')
-        .getPublicUrl(fileName);
-
-      if (urlError) throw urlError;
-
-      audioUrl = publicURL;
+      formDataToSend.append('audioFile', formData.audioFile);
+    }
+    if (editingProgram) {
+      formDataToSend.append('id', editingProgram.id.toString());
+      formDataToSend.append('audio_url', editingProgram.audio_url);
     }
 
-    const programData = {
-      program_name: formData.programName,
-      date: formData.date,
-      category: formData.category,
-      description: formData.description,
-      audio_url: audioUrl,
-    };
+    try {
+      const response = await fetch('/api/audio', {
+        method: editingProgram ? 'PUT' : 'POST',
+        body: formDataToSend,
+      });
 
-    const response = await fetch('/api/audio', {
-      method: editingProgram ? 'PUT' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editingProgram ? { ...programData, id: editingProgram.id } : programData),
-    });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to add/update audio entry');
+      }
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to add/update audio entry');
-    }
-
-    alert(editingProgram ? 'Audio entry updated successfully!' : 'Audio entry added successfully!');
-    if (typeof onCancel === 'function') {
-      onCancel();
+      alert(editingProgram ? 'Audio entry updated successfully!' : 'Audio entry added successfully!');
+      if (typeof onCancel === 'function') {
+        onCancel();
+      }
+    } catch (error: unknown) {
+      console.error('Error adding/updating audio entry:', error);
+      alert(`Failed to add/update audio entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
